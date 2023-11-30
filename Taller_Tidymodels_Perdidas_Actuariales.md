@@ -9,92 +9,15 @@ R Notebook
 
 ``` r
 library(tidyverse)
-```
-
-    ## Warning: package 'tidyverse' was built under R version 4.0.5
-
-    ## -- Attaching packages --------------------------------------- tidyverse 1.3.1 --
-
-    ## v ggplot2 3.4.4     v purrr   1.0.2
-    ## v tibble  3.2.1     v dplyr   1.1.3
-    ## v tidyr   1.3.0     v stringr 1.5.1
-    ## v readr   2.1.4     v forcats 1.0.0
-
-    ## -- Conflicts ------------------------------------------ tidyverse_conflicts() --
-    ## x dplyr::filter() masks stats::filter()
-    ## x dplyr::lag()    masks stats::lag()
-
-``` r
 library(tidymodels)
-```
-
-    ## -- Attaching packages -------------------------------------- tidymodels 1.1.1 --
-
-    ## v broom        1.0.5     v rsample      1.2.0
-    ## v dials        1.2.0     v tune         1.1.2
-    ## v infer        1.0.5     v workflows    1.1.3
-    ## v modeldata    1.2.0     v workflowsets 1.0.1
-    ## v parsnip      1.1.1     v yardstick    1.2.0
-    ## v recipes      1.0.8
-
-    ## -- Conflicts ----------------------------------------- tidymodels_conflicts() --
-    ## x scales::discard() masks purrr::discard()
-    ## x dplyr::filter()   masks stats::filter()
-    ## x recipes::fixed()  masks stringr::fixed()
-    ## x dplyr::lag()      masks stats::lag()
-    ## x yardstick::spec() masks readr::spec()
-    ## x recipes::step()   masks stats::step()
-    ## * Learn how to get started at https://www.tidymodels.org/start/
-
-``` r
 library(skimr)
 library(textrecipes)
 library(parallel)
 library(doParallel)
-```
-
-    ## Warning: package 'doParallel' was built under R version 4.0.5
-
-    ## Loading required package: foreach
-
-    ## Warning: package 'foreach' was built under R version 4.0.5
-
-    ## 
-    ## Attaching package: 'foreach'
-
-    ## The following objects are masked from 'package:purrr':
-    ## 
-    ##     accumulate, when
-
-    ## Loading required package: iterators
-
-    ## Warning: package 'iterators' was built under R version 4.0.5
-
-``` r
 library(glmnet)
-```
-
-    ## Loading required package: Matrix
-
-    ## 
-    ## Attaching package: 'Matrix'
-
-    ## The following objects are masked from 'package:tidyr':
-    ## 
-    ##     expand, pack, unpack
-
-    ## Loaded glmnet 4.1-8
-
-``` r
 library(xgboost)
+library(vip)
 ```
-
-    ## 
-    ## Attaching package: 'xgboost'
-
-    ## The following object is masked from 'package:dplyr':
-    ## 
-    ##     slice
 
 ### Obtener los datos
 
@@ -158,6 +81,8 @@ datos %>% glimpse
 ### Activar Paralelizacion
 
 ``` r
+## Ojo, esto cambia entre computadoras
+## depende de la cantidad de cores físicos
 parallel::detectCores(logical=FALSE)
 ```
 
@@ -170,6 +95,8 @@ registerDoParallel(cl)
 ```
 
 ## EDA
+
+No se realizará mucho EDA por el tiempo disponible para el taller
 
 ``` r
 datos %>% skimr::skim()
@@ -827,7 +754,7 @@ tuned_xgb_01
 ##### Verificar mejores combinaciones
 
 ``` r
-show_best(tuned_xgb_01, metric = 'rmse')
+          show_best(tuned_xgb_01, metric = 'rmse')
 ```
 
     ## # A tibble: 5 x 11
@@ -841,7 +768,7 @@ show_best(tuned_xgb_01, metric = 'rmse')
     ## # i 3 more variables: n <int>, std_err <dbl>, .config <chr>
 
 ``` r
-show_best(tuned_xgb_01, metric = 'mae')
+          show_best(tuned_xgb_01, metric = 'mae')
 ```
 
     ## # A tibble: 5 x 11
@@ -855,7 +782,7 @@ show_best(tuned_xgb_01, metric = 'mae')
     ## # i 3 more variables: n <int>, std_err <dbl>, .config <chr>
 
 ``` r
-show_best(tuned_xgb_01, metric = 'rsq')
+          show_best(tuned_xgb_01, metric = 'rsq')
 ```
 
     ## # A tibble: 5 x 11
@@ -869,7 +796,7 @@ show_best(tuned_xgb_01, metric = 'rsq')
     ## # i 3 more variables: n <int>, std_err <dbl>, .config <chr>
 
 ``` r
-show_best(tuned_xgb_01, metric = 'mape')
+          show_best(tuned_xgb_01, metric = 'mape')
 ```
 
     ## # A tibble: 5 x 11
@@ -972,6 +899,51 @@ res_test %>% metricas(truth = Real, estimate = .pred)
     ## 2 rsq     standard       0.271
     ## 3 mae     standard    8607.   
     ## 4 mape    standard     302.
+
+## Análisis Posterior de los modelos
+
+Se puede realizar todo lo que conocemos para cada modelo, por ejemplo,
+para XGB se puede obtener la importancia de las variables
+
+### Importancia de las variables
+
+``` r
+mod_xgb_solo <- extract_fit_parsnip(mod_xgb_fit01)
+mod_xgb_solo
+```
+
+    ## parsnip model object
+    ## 
+    ## ##### xgb.Booster
+    ## raw: 26.9 Kb 
+    ## call:
+    ##   xgboost::xgb.train(params = list(eta = 0.18610093490829, max_depth = 3L, 
+    ##     gamma = 2.90641712867355e-10, colsample_bytree = 1, colsample_bynode = 0.12, 
+    ##     min_child_weight = 1, subsample = 1), data = x$data, nrounds = 20L, 
+    ##     watchlist = x$watchlist, verbose = 0, eval_metric = "rmse", 
+    ##     nthread = 1, objective = "reg:squarederror")
+    ## params (as set within xgb.train):
+    ##   eta = "0.18610093490829", max_depth = "3", gamma = "2.90641712867355e-10", colsample_bytree = "1", colsample_bynode = "0.12", min_child_weight = "1", subsample = "1", eval_metric = "rmse", nthread = "1", objective = "reg:squarederror", validate_parameters = "TRUE"
+    ## xgb.attributes:
+    ##   niter
+    ## callbacks:
+    ##   cb.evaluation.log()
+    ## # of features: 75 
+    ## niter: 20
+    ## nfeatures : 75 
+    ## evaluation_log:
+    ##     iter training_rmse
+    ##        1      34502.04
+    ##        2      33936.24
+    ## ---                   
+    ##       19      30863.47
+    ##       20      30650.31
+
+``` r
+vip(mod_xgb_solo)
+```
+
+![](Taller_Tidymodels_Perdidas_Actuariales_files/figure-gfm/unnamed-chunk-30-1.png)<!-- -->
 
 ## ¿Y si nos comparamos con los ganadores de Kaggle?
 
